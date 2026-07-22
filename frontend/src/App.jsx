@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
+import Auth from './Auth';                  // ADD THIS
+import { supabase } from './supabaseClient'; // ADD THIS
 import './App.css';
 
 function App() {
@@ -8,6 +10,25 @@ function App() {
   const [budget, setBudget] = useState('');
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);     // ADD THIS
+
+  // ADD THIS BLOCK — checks if a user session already exists on page load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {   // ADD THIS
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   const handleSearch = async () => {
     setLoading(true);
@@ -26,6 +47,16 @@ function App() {
     <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
       <h1>SpotOn</h1>
       <p>Find the perfect date spot in Singapore</p>
+
+      {/* ADD THIS BLOCK */}
+      {user ? (
+        <div style={{ marginBottom: '1rem' }}>
+          <p>Logged in as {user.email}</p>
+          <button onClick={handleLogout}>Log out</button>
+        </div>
+      ) : (
+        <Auth onLogin={setUser} />
+      )}
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
         <select value={dateType} onChange={(e) => setDateType(e.target.value)}>
